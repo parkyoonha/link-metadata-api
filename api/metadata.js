@@ -19,8 +19,64 @@ function fetchJson(url) {
         }
       });
       response.on('error', reject);
-    }).on('error', reject);
+    }).on('error', reject).setTimeout(5000, () => reject(new Error('Timeout')));
   });
+}
+
+// 1단계: oEmbed API 시도
+async function tryOEmbed(url) {
+  try {
+    // YouTube
+    if (url.includes('youtube.com') || url.includes('youtu.be')) {
+      const oembedUrl = `https://www.youtube.com/oembed?url=${encodeURIComponent(url)}&format=json`;
+      const data = await fetchJson(oembedUrl);
+
+      const videoIdMatch = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\s]+)/);
+      const videoId = videoIdMatch ? videoIdMatch[1] : null;
+
+      return {
+        title: data.title || null,
+        description: data.author_name || null,
+        image: videoId ? `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg` : (data.thumbnail_url || null)
+      };
+    }
+
+    // Twitter/X
+    if (url.includes('twitter.com') || url.includes('x.com')) {
+      // Twitter oEmbed는 API 키 필요하므로 스킵
+      return null;
+    }
+
+    // Instagram은 Facebook Graph API 필요하므로 스킵
+    // Vimeo
+    if (url.includes('vimeo.com')) {
+      const oembedUrl = `https://vimeo.com/api/oembed.json?url=${encodeURIComponent(url)}`;
+      const data = await fetchJson(oembedUrl);
+
+      return {
+        title: data.title || null,
+        description: data.author_name || null,
+        image: data.thumbnail_url || null
+      };
+    }
+
+    // SoundCloud
+    if (url.includes('soundcloud.com')) {
+      const oembedUrl = `https://soundcloud.com/oembed?url=${encodeURIComponent(url)}&format=json`;
+      const data = await fetchJson(oembedUrl);
+
+      return {
+        title: data.title || null,
+        description: data.author_name || null,
+        image: data.thumbnail_url || null
+      };
+    }
+
+  } catch (error) {
+    console.log('oEmbed failed:', error.message);
+  }
+
+  return null;
 }
 
 module.exports = async (req, res) => {
@@ -61,24 +117,10 @@ function fetchMetadata(url, redirectCount = 0) {
       return reject(new Error('Too many redirects'));
     }
 
-    // YouTube 특수 처리 - oEmbed API 사용
-    if (url.includes('youtube.com') || url.includes('youtu.be')) {
-      try {
-        const oembedUrl = `https://www.youtube.com/oembed?url=${encodeURIComponent(url)}&format=json`;
-        const oembedData = await fetchJson(oembedUrl);
-
-        const videoIdMatch = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\s]+)/);
-        const videoId = videoIdMatch ? videoIdMatch[1] : null;
-
-        return resolve({
-          title: oembedData.title || null,
-          description: oembedData.author_name ? `${oembedData.author_name}` : null,
-          image: videoId ? `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg` : (oembedData.thumbnail_url || null)
-        });
-      } catch (oembedError) {
-        // oEmbed 실패 시 일반 로직으로 fallback
-        console.log('YouTube oEmbed failed, falling back to regular fetch:', oembedError.message);
-      }
+    // 1단계: oEmbed API 시도
+    const oembedResult = await tryOEmbed(url);
+    if (oembedResult) {
+      return resolve(oembedResult);
     }
 
     const urlObj = new URL(url.startsWith('http') ? url : `https://${url}`);
