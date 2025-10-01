@@ -103,54 +103,116 @@ function parseMetadata(html, url) {
   };
 
   try {
-    // YouTube 특수 처리
+    // 1. JSON-LD (Schema.org) 파싱 - 최우선
+    const jsonLdMatches = html.match(/<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi);
+    if (jsonLdMatches) {
+      for (const match of jsonLdMatches) {
+        try {
+          const jsonContent = match.replace(/<script[^>]*>/i, '').replace(/<\/script>/i, '');
+          const jsonData = JSON.parse(jsonContent);
+
+          // @graph 배열 처리
+          const items = jsonData['@graph'] ? jsonData['@graph'] : [jsonData];
+
+          for (const item of items) {
+            const type = item['@type'];
+            if (!type) continue;
+
+            // NewsArticle, Article, BlogPosting 등
+            if (type.includes('Article') || type.includes('BlogPosting') || type.includes('NewsArticle')) {
+              if (!metadata.title && item.headline) {
+                metadata.title = decodeHtml(item.headline);
+              }
+              if (!metadata.description && item.description) {
+                metadata.description = decodeHtml(item.description);
+              }
+              if (!metadata.image && item.image) {
+                const img = Array.isArray(item.image) ? item.image[0] : item.image;
+                metadata.image = typeof img === 'string' ? img : (img.url || img['@id']);
+              }
+            }
+
+            // Product
+            if (type.includes('Product')) {
+              if (!metadata.title && item.name) {
+                metadata.title = decodeHtml(item.name);
+              }
+              if (!metadata.description && item.description) {
+                metadata.description = decodeHtml(item.description);
+              }
+              if (!metadata.image && item.image) {
+                const img = Array.isArray(item.image) ? item.image[0] : item.image;
+                metadata.image = typeof img === 'string' ? img : (img.url || img['@id']);
+              }
+            }
+
+            // VideoObject
+            if (type.includes('VideoObject')) {
+              if (!metadata.title && item.name) {
+                metadata.title = decodeHtml(item.name);
+              }
+              if (!metadata.description && item.description) {
+                metadata.description = decodeHtml(item.description);
+              }
+              if (!metadata.image && item.thumbnailUrl) {
+                const img = Array.isArray(item.thumbnailUrl) ? item.thumbnailUrl[0] : item.thumbnailUrl;
+                metadata.image = typeof img === 'string' ? img : (img.url || img['@id']);
+              }
+            }
+          }
+        } catch (jsonError) {
+          // JSON 파싱 실패는 무시하고 다음 시도
+        }
+      }
+    }
+
+    // 2. YouTube 특수 처리
     if (url.includes('youtube.com') || url.includes('youtu.be')) {
       const videoIdMatch = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\s]+)/);
-      if (videoIdMatch) {
+      if (videoIdMatch && !metadata.image) {
         const videoId = videoIdMatch[1];
         metadata.image = `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`;
       }
     }
 
-    // Open Graph 이미지
+    // 3. Open Graph 메타데이터
     const ogImageMatch = html.match(/<meta\s+property=["']og:image["']\s+content=["']([^"']+)["']/i);
     if (ogImageMatch && !metadata.image) {
       metadata.image = ogImageMatch[1];
     }
 
-    // Twitter 이미지
+    const ogTitleMatch = html.match(/<meta\s+property=["']og:title["']\s+content=["']([^"']+)["']/i);
+    if (ogTitleMatch && !metadata.title) {
+      metadata.title = decodeHtml(ogTitleMatch[1]);
+    }
+
+    const ogDescMatch = html.match(/<meta\s+property=["']og:description["']\s+content=["']([^"']+)["']/i);
+    if (ogDescMatch && !metadata.description) {
+      metadata.description = decodeHtml(ogDescMatch[1]);
+    }
+
+    // 4. Twitter Cards
     const twitterImageMatch = html.match(/<meta\s+name=["']twitter:image["']\s+content=["']([^"']+)["']/i);
     if (twitterImageMatch && !metadata.image) {
       metadata.image = twitterImageMatch[1];
     }
 
-    // 메타데이터 이미지가 없으면 null 유지 (Flutter 앱에서 텍스트 썸네일 표시)
-
-    // Open Graph 제목
-    const ogTitleMatch = html.match(/<meta\s+property=["']og:title["']\s+content=["']([^"']+)["']/i);
-    if (ogTitleMatch) {
-      metadata.title = decodeHtml(ogTitleMatch[1]);
-    }
-
-    // Twitter 제목
     const twitterTitleMatch = html.match(/<meta\s+name=["']twitter:title["']\s+content=["']([^"']+)["']/i);
     if (twitterTitleMatch && !metadata.title) {
       metadata.title = decodeHtml(twitterTitleMatch[1]);
     }
 
-    // 일반 title 태그
+    const twitterDescMatch = html.match(/<meta\s+name=["']twitter:description["']\s+content=["']([^"']+)["']/i);
+    if (twitterDescMatch && !metadata.description) {
+      metadata.description = decodeHtml(twitterDescMatch[1]);
+    }
+
+    // 5. 일반 메타 태그
     const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
     if (titleMatch && !metadata.title) {
       metadata.title = decodeHtml(titleMatch[1]);
     }
 
-    // Open Graph 설명
-    const ogDescMatch = html.match(/<meta\s+property=["']og:description["']\s+content=["']([^"']+)["']/i);
-    if (ogDescMatch) {
-      metadata.description = decodeHtml(ogDescMatch[1]);
-    }
-
-    // Meta description
     const descMatch = html.match(/<meta\s+name=["']description["']\s+content=["']([^"']+)["']/i);
     if (descMatch && !metadata.description) {
       metadata.description = decodeHtml(descMatch[1]);
