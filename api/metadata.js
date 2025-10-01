@@ -2,6 +2,27 @@ const https = require('https');
 const http = require('http');
 const zlib = require('zlib');
 
+// JSON 가져오기 헬퍼 함수
+function fetchJson(url) {
+  return new Promise((resolve, reject) => {
+    const urlObj = new URL(url);
+    const protocol = urlObj.protocol === 'https:' ? https : http;
+
+    protocol.get(url, (response) => {
+      let data = '';
+      response.on('data', (chunk) => data += chunk);
+      response.on('end', () => {
+        try {
+          resolve(JSON.parse(data));
+        } catch (e) {
+          reject(new Error('Invalid JSON response'));
+        }
+      });
+      response.on('error', reject);
+    }).on('error', reject);
+  });
+}
+
 module.exports = async (req, res) => {
   // CORS 헤더 설정
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -34,10 +55,30 @@ module.exports = async (req, res) => {
 };
 
 function fetchMetadata(url, redirectCount = 0) {
-  return new Promise((resolve, reject) => {
+  return new Promise(async (resolve, reject) => {
     // 무한 리다이렉트 방지 (최대 5번)
     if (redirectCount > 5) {
       return reject(new Error('Too many redirects'));
+    }
+
+    // YouTube 특수 처리 - oEmbed API 사용
+    if (url.includes('youtube.com') || url.includes('youtu.be')) {
+      try {
+        const oembedUrl = `https://www.youtube.com/oembed?url=${encodeURIComponent(url)}&format=json`;
+        const oembedData = await fetchJson(oembedUrl);
+
+        const videoIdMatch = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\s]+)/);
+        const videoId = videoIdMatch ? videoIdMatch[1] : null;
+
+        return resolve({
+          title: oembedData.title || null,
+          description: oembedData.author_name ? `${oembedData.author_name}` : null,
+          image: videoId ? `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg` : (oembedData.thumbnail_url || null)
+        });
+      } catch (oembedError) {
+        // oEmbed 실패 시 일반 로직으로 fallback
+        console.log('YouTube oEmbed failed, falling back to regular fetch:', oembedError.message);
+      }
     }
 
     const urlObj = new URL(url.startsWith('http') ? url : `https://${url}`);
@@ -193,34 +234,40 @@ function parseMetadata(html, url) {
       }
     }
 
-    // 3. Open Graph 메타데이터
-    const ogImageMatch = html.match(/<meta\s+property=["']og:image["']\s+content=["']([^"']+)["']/i);
+    // 3. Open Graph 메타데이터 (속성 순서 무관하게 매칭)
+    const ogImageMatch = html.match(/<meta\s+(?:[^>]*?\s+)?property=["']og:image["']\s+(?:[^>]*?\s+)?content=["']([^"']+)["']/i)
+                      || html.match(/<meta\s+(?:[^>]*?\s+)?content=["']([^"']+)["']\s+(?:[^>]*?\s+)?property=["']og:image["']/i);
     if (ogImageMatch && !metadata.image) {
       metadata.image = ogImageMatch[1];
     }
 
-    const ogTitleMatch = html.match(/<meta\s+property=["']og:title["']\s+content=["']([^"']+)["']/i);
+    const ogTitleMatch = html.match(/<meta\s+(?:[^>]*?\s+)?property=["']og:title["']\s+(?:[^>]*?\s+)?content=["']([^"']+)["']/i)
+                      || html.match(/<meta\s+(?:[^>]*?\s+)?content=["']([^"']+)["']\s+(?:[^>]*?\s+)?property=["']og:title["']/i);
     if (ogTitleMatch && !metadata.title) {
       metadata.title = decodeHtml(ogTitleMatch[1]);
     }
 
-    const ogDescMatch = html.match(/<meta\s+property=["']og:description["']\s+content=["']([^"']+)["']/i);
+    const ogDescMatch = html.match(/<meta\s+(?:[^>]*?\s+)?property=["']og:description["']\s+(?:[^>]*?\s+)?content=["']([^"']+)["']/i)
+                     || html.match(/<meta\s+(?:[^>]*?\s+)?content=["']([^"']+)["']\s+(?:[^>]*?\s+)?property=["']og:description["']/i);
     if (ogDescMatch && !metadata.description) {
       metadata.description = decodeHtml(ogDescMatch[1]);
     }
 
-    // 4. Twitter Cards
-    const twitterImageMatch = html.match(/<meta\s+name=["']twitter:image["']\s+content=["']([^"']+)["']/i);
+    // 4. Twitter Cards (속성 순서 무관하게 매칭)
+    const twitterImageMatch = html.match(/<meta\s+(?:[^>]*?\s+)?name=["']twitter:image["']\s+(?:[^>]*?\s+)?content=["']([^"']+)["']/i)
+                            || html.match(/<meta\s+(?:[^>]*?\s+)?content=["']([^"']+)["']\s+(?:[^>]*?\s+)?name=["']twitter:image["']/i);
     if (twitterImageMatch && !metadata.image) {
       metadata.image = twitterImageMatch[1];
     }
 
-    const twitterTitleMatch = html.match(/<meta\s+name=["']twitter:title["']\s+content=["']([^"']+)["']/i);
+    const twitterTitleMatch = html.match(/<meta\s+(?:[^>]*?\s+)?name=["']twitter:title["']\s+(?:[^>]*?\s+)?content=["']([^"']+)["']/i)
+                           || html.match(/<meta\s+(?:[^>]*?\s+)?content=["']([^"']+)["']\s+(?:[^>]*?\s+)?name=["']twitter:title["']/i);
     if (twitterTitleMatch && !metadata.title) {
       metadata.title = decodeHtml(twitterTitleMatch[1]);
     }
 
-    const twitterDescMatch = html.match(/<meta\s+name=["']twitter:description["']\s+content=["']([^"']+)["']/i);
+    const twitterDescMatch = html.match(/<meta\s+(?:[^>]*?\s+)?name=["']twitter:description["']\s+(?:[^>]*?\s+)?content=["']([^"']+)["']/i)
+                          || html.match(/<meta\s+(?:[^>]*?\s+)?content=["']([^"']+)["']\s+(?:[^>]*?\s+)?name=["']twitter:description["']/i);
     if (twitterDescMatch && !metadata.description) {
       metadata.description = decodeHtml(twitterDescMatch[1]);
     }
@@ -228,10 +275,16 @@ function parseMetadata(html, url) {
     // 5. 일반 메타 태그
     const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
     if (titleMatch && !metadata.title) {
-      metadata.title = decodeHtml(titleMatch[1]);
+      let title = decodeHtml(titleMatch[1].trim());
+      // YouTube의 경우 " - YouTube" 제거
+      if ((url.includes('youtube.com') || url.includes('youtu.be')) && title.endsWith(' - YouTube')) {
+        title = title.slice(0, -10).trim();
+      }
+      metadata.title = title;
     }
 
-    const descMatch = html.match(/<meta\s+name=["']description["']\s+content=["']([^"']+)["']/i);
+    const descMatch = html.match(/<meta\s+(?:[^>]*?\s+)?name=["']description["']\s+(?:[^>]*?\s+)?content=["']([^"']+)["']/i)
+                   || html.match(/<meta\s+(?:[^>]*?\s+)?content=["']([^"']+)["']\s+(?:[^>]*?\s+)?name=["']description["']/i);
     if (descMatch && !metadata.description) {
       metadata.description = decodeHtml(descMatch[1]);
     }
