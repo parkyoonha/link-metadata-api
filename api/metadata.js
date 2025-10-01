@@ -124,12 +124,7 @@ function parseMetadata(html, url) {
       metadata.image = twitterImageMatch[1];
     }
 
-    // 메타데이터 이미지가 없으면 무료 스크린샷 서비스 사용
-    if (!metadata.image) {
-      // PagePeeker 무료 스크린샷 API
-      const encodedUrl = encodeURIComponent(url);
-      metadata.image = `https://api.pagepeeker.com/v2/thumbs.php?size=x&url=${encodedUrl}`;
-    }
+    // 메타데이터 이미지가 없으면 null 유지 (Flutter 앱에서 텍스트 썸네일 표시)
 
     // Open Graph 제목
     const ogTitleMatch = html.match(/<meta\s+property=["']og:title["']\s+content=["']([^"']+)["']/i);
