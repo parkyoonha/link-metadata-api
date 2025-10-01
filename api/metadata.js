@@ -31,8 +31,13 @@ module.exports = async (req, res) => {
   }
 };
 
-function fetchMetadata(url) {
+function fetchMetadata(url, redirectCount = 0) {
   return new Promise((resolve, reject) => {
+    // 무한 리다이렉트 방지 (최대 5번)
+    if (redirectCount > 5) {
+      return reject(new Error('Too many redirects'));
+    }
+
     const urlObj = new URL(url.startsWith('http') ? url : `https://${url}`);
     const protocol = urlObj.protocol === 'https:' ? https : http;
 
@@ -52,6 +57,22 @@ function fetchMetadata(url) {
     };
 
     protocol.get(options, (response) => {
+      // 리다이렉트 처리 (301, 302, 303, 307, 308)
+      if ([301, 302, 303, 307, 308].includes(response.statusCode)) {
+        const redirectUrl = response.headers.location;
+        if (redirectUrl) {
+          // 상대 경로면 절대 경로로 변환
+          const absoluteUrl = redirectUrl.startsWith('http')
+            ? redirectUrl
+            : `${urlObj.protocol}//${urlObj.hostname}${redirectUrl}`;
+
+          response.destroy(); // 현재 연결 종료
+          return fetchMetadata(absoluteUrl, redirectCount + 1)
+            .then(resolve)
+            .catch(reject);
+        }
+      }
+
       let data = '';
 
       response.on('data', (chunk) => {
