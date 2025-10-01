@@ -24,6 +24,7 @@ module.exports = async (req, res) => {
     console.error('Error fetching metadata:', error);
     res.status(500).json({
       error: 'Failed to fetch metadata',
+      errorMessage: error.message,
       title: null,
       description: null,
       image: null
@@ -222,18 +223,15 @@ function parseMetadata(html, url) {
     console.error('Parse error:', error);
   }
 
-  // 디버깅: 파싱 실패 시 HTML 일부 로깅
+  // 디버깅: 파싱 실패 시 HTML 일부 포함
   if (!metadata.title) {
-    console.log('===== 제목 파싱 실패 =====');
-    console.log('URL:', url);
-    console.log('HTML length:', html.length);
-    console.log('HTML preview (first 2000 chars):', html.substring(0, 2000));
-
-    // <title> 태그 찾기 (더 관대한 패턴)
-    const titleMatches = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
-    if (titleMatches) {
-      console.log('Title tag found:', titleMatches[1]);
-    }
+    metadata.debug = {
+      htmlLength: html.length,
+      htmlPreview: html.substring(0, 1000),
+      hasTitleTag: html.includes('<title'),
+      hasOgTitle: html.includes('og:title'),
+      hasJsonLd: html.includes('application/ld+json')
+    };
   }
 
   return metadata;
