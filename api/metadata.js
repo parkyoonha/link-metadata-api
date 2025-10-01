@@ -53,7 +53,7 @@ function fetchMetadata(url, redirectCount = 0) {
         'Connection': 'keep-alive',
         'Upgrade-Insecure-Requests': '1'
       },
-      timeout: 8000
+      timeout: 12000
     };
 
     protocol.get(options, (response) => {
