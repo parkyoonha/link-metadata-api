@@ -1,5 +1,6 @@
 const https = require('https');
 const http = require('http');
+const zlib = require('zlib');
 
 module.exports = async (req, res) => {
   // CORS 헤더 설정
@@ -74,19 +75,35 @@ function fetchMetadata(url, redirectCount = 0) {
         }
       }
 
+      // GZIP 압축 해제 처리
+      let stream = response;
+      const encoding = response.headers['content-encoding'];
+
+      if (encoding === 'gzip') {
+        stream = response.pipe(zlib.createGunzip());
+      } else if (encoding === 'deflate') {
+        stream = response.pipe(zlib.createInflate());
+      } else if (encoding === 'br') {
+        stream = response.pipe(zlib.createBrotliDecompress());
+      }
+
       let data = '';
 
-      response.on('data', (chunk) => {
-        data += chunk;
-        // 너무 큰 응답은 중단 (100KB까지만)
-        if (data.length > 100000) {
-          response.destroy();
+      stream.on('data', (chunk) => {
+        data += chunk.toString('utf8');
+        // 너무 큰 응답은 중단 (500KB까지)
+        if (data.length > 500000) {
+          stream.destroy();
           resolve(parseMetadata(data, url));
         }
       });
 
-      response.on('end', () => {
+      stream.on('end', () => {
         resolve(parseMetadata(data, url));
+      });
+
+      stream.on('error', (error) => {
+        reject(error);
       });
     }).on('error', (error) => {
       reject(error);
