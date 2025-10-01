@@ -234,40 +234,52 @@ function parseMetadata(html, url) {
       }
     }
 
-    // 3. Open Graph 메타데이터 (속성 순서 무관하게 매칭)
-    const ogImageMatch = html.match(/<meta\s+(?:[^>]*?\s+)?property=["']og:image["']\s+(?:[^>]*?\s+)?content=["']([^"']+)["']/i)
-                      || html.match(/<meta\s+(?:[^>]*?\s+)?content=["']([^"']+)["']\s+(?:[^>]*?\s+)?property=["']og:image["']/i);
+    // 3. Open Graph 메타데이터 (속성 순서 무관하게 매칭, 따옴표 안의 모든 내용 포함)
+    const ogImageMatch = html.match(/<meta\s+(?:[^>]*?\s+)?property=["']og:image["']\s+(?:[^>]*?\s+)?content="([^"]*)"/i)
+                      || html.match(/<meta\s+(?:[^>]*?\s+)?property=["']og:image["']\s+(?:[^>]*?\s+)?content='([^']*)'/i)
+                      || html.match(/<meta\s+(?:[^>]*?\s+)?content="([^"]*)"\s+(?:[^>]*?\s+)?property=["']og:image["']/i)
+                      || html.match(/<meta\s+(?:[^>]*?\s+)?content='([^']*)'\s+(?:[^>]*?\s+)?property=["']og:image["']/i);
     if (ogImageMatch && !metadata.image) {
       metadata.image = ogImageMatch[1];
     }
 
-    const ogTitleMatch = html.match(/<meta\s+(?:[^>]*?\s+)?property=["']og:title["']\s+(?:[^>]*?\s+)?content=["']([^"']+)["']/i)
-                      || html.match(/<meta\s+(?:[^>]*?\s+)?content=["']([^"']+)["']\s+(?:[^>]*?\s+)?property=["']og:title["']/i);
+    const ogTitleMatch = html.match(/<meta\s+(?:[^>]*?\s+)?property=["']og:title["']\s+(?:[^>]*?\s+)?content="([^"]*)"/i)
+                      || html.match(/<meta\s+(?:[^>]*?\s+)?property=["']og:title["']\s+(?:[^>]*?\s+)?content='([^']*)'/i)
+                      || html.match(/<meta\s+(?:[^>]*?\s+)?content="([^"]*)"\s+(?:[^>]*?\s+)?property=["']og:title["']/i)
+                      || html.match(/<meta\s+(?:[^>]*?\s+)?content='([^']*)'\s+(?:[^>]*?\s+)?property=["']og:title["']/i);
     if (ogTitleMatch && !metadata.title) {
       metadata.title = decodeHtml(ogTitleMatch[1]);
     }
 
-    const ogDescMatch = html.match(/<meta\s+(?:[^>]*?\s+)?property=["']og:description["']\s+(?:[^>]*?\s+)?content=["']([^"']+)["']/i)
-                     || html.match(/<meta\s+(?:[^>]*?\s+)?content=["']([^"']+)["']\s+(?:[^>]*?\s+)?property=["']og:description["']/i);
+    const ogDescMatch = html.match(/<meta\s+(?:[^>]*?\s+)?property=["']og:description["']\s+(?:[^>]*?\s+)?content="([^"]*)"/i)
+                     || html.match(/<meta\s+(?:[^>]*?\s+)?property=["']og:description["']\s+(?:[^>]*?\s+)?content='([^']*)'/i)
+                     || html.match(/<meta\s+(?:[^>]*?\s+)?content="([^"]*)"\s+(?:[^>]*?\s+)?property=["']og:description["']/i)
+                     || html.match(/<meta\s+(?:[^>]*?\s+)?content='([^']*)'\s+(?:[^>]*?\s+)?property=["']og:description["']/i);
     if (ogDescMatch && !metadata.description) {
       metadata.description = decodeHtml(ogDescMatch[1]);
     }
 
-    // 4. Twitter Cards (속성 순서 무관하게 매칭)
-    const twitterImageMatch = html.match(/<meta\s+(?:[^>]*?\s+)?name=["']twitter:image["']\s+(?:[^>]*?\s+)?content=["']([^"']+)["']/i)
-                            || html.match(/<meta\s+(?:[^>]*?\s+)?content=["']([^"']+)["']\s+(?:[^>]*?\s+)?name=["']twitter:image["']/i);
+    // 4. Twitter Cards (속성 순서 무관하게 매칭, 따옴표 안의 모든 내용 포함)
+    const twitterImageMatch = html.match(/<meta\s+(?:[^>]*?\s+)?name=["']twitter:image["']\s+(?:[^>]*?\s+)?content="([^"]*)"/i)
+                            || html.match(/<meta\s+(?:[^>]*?\s+)?name=["']twitter:image["']\s+(?:[^>]*?\s+)?content='([^']*)'/i)
+                            || html.match(/<meta\s+(?:[^>]*?\s+)?content="([^"]*)"\s+(?:[^>]*?\s+)?name=["']twitter:image["']/i)
+                            || html.match(/<meta\s+(?:[^>]*?\s+)?content='([^']*)'\s+(?:[^>]*?\s+)?name=["']twitter:image["']/i);
     if (twitterImageMatch && !metadata.image) {
       metadata.image = twitterImageMatch[1];
     }
 
-    const twitterTitleMatch = html.match(/<meta\s+(?:[^>]*?\s+)?name=["']twitter:title["']\s+(?:[^>]*?\s+)?content=["']([^"']+)["']/i)
-                           || html.match(/<meta\s+(?:[^>]*?\s+)?content=["']([^"']+)["']\s+(?:[^>]*?\s+)?name=["']twitter:title["']/i);
+    const twitterTitleMatch = html.match(/<meta\s+(?:[^>]*?\s+)?name=["']twitter:title["']\s+(?:[^>]*?\s+)?content="([^"]*)"/i)
+                           || html.match(/<meta\s+(?:[^>]*?\s+)?name=["']twitter:title["']\s+(?:[^>]*?\s+)?content='([^']*)'/i)
+                           || html.match(/<meta\s+(?:[^>]*?\s+)?content="([^"]*)"\s+(?:[^>]*?\s+)?name=["']twitter:title["']/i)
+                           || html.match(/<meta\s+(?:[^>]*?\s+)?content='([^']*)'\s+(?:[^>]*?\s+)?name=["']twitter:title["']/i);
     if (twitterTitleMatch && !metadata.title) {
       metadata.title = decodeHtml(twitterTitleMatch[1]);
     }
 
-    const twitterDescMatch = html.match(/<meta\s+(?:[^>]*?\s+)?name=["']twitter:description["']\s+(?:[^>]*?\s+)?content=["']([^"']+)["']/i)
-                          || html.match(/<meta\s+(?:[^>]*?\s+)?content=["']([^"']+)["']\s+(?:[^>]*?\s+)?name=["']twitter:description["']/i);
+    const twitterDescMatch = html.match(/<meta\s+(?:[^>]*?\s+)?name=["']twitter:description["']\s+(?:[^>]*?\s+)?content="([^"]*)"/i)
+                          || html.match(/<meta\s+(?:[^>]*?\s+)?name=["']twitter:description["']\s+(?:[^>]*?\s+)?content='([^']*)'/i)
+                          || html.match(/<meta\s+(?:[^>]*?\s+)?content="([^"]*)"\s+(?:[^>]*?\s+)?name=["']twitter:description["']/i)
+                          || html.match(/<meta\s+(?:[^>]*?\s+)?content='([^']*)'\s+(?:[^>]*?\s+)?name=["']twitter:description["']/i);
     if (twitterDescMatch && !metadata.description) {
       metadata.description = decodeHtml(twitterDescMatch[1]);
     }
@@ -283,8 +295,10 @@ function parseMetadata(html, url) {
       metadata.title = title;
     }
 
-    const descMatch = html.match(/<meta\s+(?:[^>]*?\s+)?name=["']description["']\s+(?:[^>]*?\s+)?content=["']([^"']+)["']/i)
-                   || html.match(/<meta\s+(?:[^>]*?\s+)?content=["']([^"']+)["']\s+(?:[^>]*?\s+)?name=["']description["']/i);
+    const descMatch = html.match(/<meta\s+(?:[^>]*?\s+)?name=["']description["']\s+(?:[^>]*?\s+)?content="([^"]*)"/i)
+                   || html.match(/<meta\s+(?:[^>]*?\s+)?name=["']description["']\s+(?:[^>]*?\s+)?content='([^']*)'/i)
+                   || html.match(/<meta\s+(?:[^>]*?\s+)?content="([^"]*)"\s+(?:[^>]*?\s+)?name=["']description["']/i)
+                   || html.match(/<meta\s+(?:[^>]*?\s+)?content='([^']*)'\s+(?:[^>]*?\s+)?name=["']description["']/i);
     if (descMatch && !metadata.description) {
       metadata.description = decodeHtml(descMatch[1]);
     }
