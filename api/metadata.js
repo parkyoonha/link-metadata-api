@@ -43,7 +43,17 @@ async function tryOEmbed(url) {
 
     // Twitter/X
     if (url.includes('twitter.com') || url.includes('x.com')) {
-      // Twitter oEmbed는 API 키 필요하므로 스킵
+      // Twitter oEmbed는 API 키 필요
+      // URL 패턴에서 트윗 ID 추출
+      const tweetIdMatch = url.match(/status\/(\d+)/);
+      if (tweetIdMatch) {
+        const tweetId = tweetIdMatch[1];
+        return {
+          title: null,  // 제목은 못 가져옴
+          description: 'X (Twitter) Post',
+          image: null  // 썸네일도 API 없이는 불가능
+        };
+      }
       return null;
     }
 
