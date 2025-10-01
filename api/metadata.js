@@ -60,14 +60,17 @@ async function tryOEmbed(url) {
           image: data.thumbnail_url || null
         };
       } catch (error) {
+        console.log('Instagram oEmbed failed, trying URL pattern:', error.message);
         // 실패 시 URL 패턴에서 추출
         const mediaIdMatch = url.match(/\/(?:p|reel|tv)\/([A-Za-z0-9_-]+)/);
         if (mediaIdMatch) {
           const mediaId = mediaIdMatch[1];
+          const pathType = url.includes('/reel/') ? 'reel' : (url.includes('/tv/') ? 'tv' : 'p');
+
           return {
             title: null,  // 제목은 못 가져옴
             description: 'Instagram Post',
-            image: `https://www.instagram.com/p/${mediaId}/media/?size=l`  // 썸네일 시도
+            image: `https://www.instagram.com/${pathType}/${mediaId}/media/?size=l`  // 썸네일 시도
           };
         }
       }
