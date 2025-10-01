@@ -47,7 +47,32 @@ async function tryOEmbed(url) {
       return null;
     }
 
-    // Instagram은 Facebook Graph API 필요하므로 스킵
+    // Instagram
+    if (url.includes('instagram.com')) {
+      try {
+        // 공개 oEmbed 시도 (제한적이지만 일부 작동)
+        const oembedUrl = `https://graph.facebook.com/v21.0/instagram_oembed?url=${encodeURIComponent(url)}&access_token=`;
+        const data = await fetchJson(oembedUrl);
+
+        return {
+          title: data.title || data.author_name || null,
+          description: data.author_name ? `@${data.author_name}` : null,
+          image: data.thumbnail_url || null
+        };
+      } catch (error) {
+        // 실패 시 URL 패턴에서 추출
+        const mediaIdMatch = url.match(/\/(?:p|reel|tv)\/([A-Za-z0-9_-]+)/);
+        if (mediaIdMatch) {
+          const mediaId = mediaIdMatch[1];
+          return {
+            title: null,  // 제목은 못 가져옴
+            description: 'Instagram Post',
+            image: `https://www.instagram.com/p/${mediaId}/media/?size=l`  // 썸네일 시도
+          };
+        }
+      }
+    }
+
     // Vimeo
     if (url.includes('vimeo.com')) {
       const oembedUrl = `https://vimeo.com/api/oembed.json?url=${encodeURIComponent(url)}`;
