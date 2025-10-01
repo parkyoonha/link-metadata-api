@@ -1,0 +1,12 @@
+{
+  "name": "link-metadata-api",
+  "version": "1.0.0",
+  "description": "API to fetch link metadata for memo app",
+  "main": "api/metadata.js",
+  "scripts": {
+    "start": "node api/metadata.js"
+  },
+  "keywords": ["metadata", "opengraph", "api"],
+  "author": "",
+  "license": "MIT"
+}
